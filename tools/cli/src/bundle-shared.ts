@@ -56,6 +56,11 @@ export const DEFAULT_DEV_SERVER_CONFIG: RspackDevServerConfiguration = {
   },
   proxy: [
     {
+      context: '/foundryos-api',
+      target: 'http://localhost:8000',
+      pathRewrite: { '^/foundryos-api': '' },
+    },
+    {
       context: '/api',
       target: 'http://localhost:3010',
     },

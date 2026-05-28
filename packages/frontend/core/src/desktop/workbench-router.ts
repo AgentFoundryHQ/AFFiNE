@@ -1,6 +1,34 @@
-import type { RouteObject } from 'react-router-dom';
+import { redirect, type RouteObject } from 'react-router-dom';
 
 export const workbenchRoutes = [
+  {
+    path: '/foundryos',
+    loader: ({ params }) => {
+      return redirect(
+        `/workspace/${params.workspaceId ?? ''}/foundryos/customer`
+      );
+    },
+  },
+  {
+    path: '/foundryos/customer',
+    lazy: () => import('./pages/workspace/foundryos'),
+  },
+  {
+    path: '/foundryos/admin',
+    lazy: () => import('./pages/workspace/foundryos'),
+  },
+  {
+    path: '/foundryos/projects/:projectId',
+    loader: ({ params }) => {
+      return redirect(
+        `/workspace/${params.workspaceId ?? ''}/foundryos/projects/${params.projectId ?? ''}/overview`
+      );
+    },
+  },
+  {
+    path: '/foundryos/projects/:projectId/:section',
+    lazy: () => import('./pages/workspace/foundryos'),
+  },
   {
     path: '/chat',
     lazy: () => import('./pages/workspace/chat/index'),

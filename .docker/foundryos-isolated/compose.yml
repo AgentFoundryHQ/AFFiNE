@@ -1,0 +1,36 @@
+name: affine_foundryos_dev
+services:
+  postgres:
+    env_file:
+      - .env
+    image: pgvector/pgvector:pg${DB_VERSION:-16}
+    ports:
+      - 55432:5432
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_DB: ${DB_DATABASE_NAME}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - 56379:6379
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - 51025:1025
+      - 58025:8025
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_DATABASE: /data/mailpit.db
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    volumes:
+      - mailpit_data:/data
+
+volumes:
+  postgres_data:
+  mailpit_data:

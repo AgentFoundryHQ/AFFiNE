@@ -24,10 +24,11 @@ import {
   ImportIcon,
   JournalIcon,
   SettingsIcon,
+  ViewLayersIcon,
 } from '@blocksuite/icons/rc';
 import { useLiveData, useService, useServices } from '@toeverything/infra';
 import type { ReactElement } from 'react';
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 
 import {
   CollapsibleSection,
@@ -68,6 +69,31 @@ export type RootAppSidebarProps = {
     shared: (workspaceId: string) => string;
   };
 };
+
+type FoundrySidebarProject = {
+  project_id: string;
+  display_name: string;
+  asset_count?: number;
+  routes?: {
+    foundryos?: {
+      overview?: string;
+    };
+  };
+};
+
+type FoundrySidebarPayload = {
+  projects: FoundrySidebarProject[];
+};
+
+function resolveFoundrySidebarApiPath(path: string) {
+  if (
+    typeof window !== 'undefined' &&
+    (window.location.port === '8080' || window.location.port === '')
+  ) {
+    return `/foundryos-api${path}`;
+  }
+  return `http://127.0.0.1:8000${path}`;
+}
 
 const AllDocsButton = () => {
   const t = useI18n();
@@ -113,6 +139,118 @@ const AIChatButton = () => {
         {t['com.affine.workspaceSubPath.chat']()}
       </span>
     </MenuLinkItem>
+  );
+};
+
+const FoundryOSButton = () => {
+  const { workbenchService } = useServices({
+    WorkbenchService,
+  });
+  const workbench = workbenchService.workbench;
+  const foundryActive = useLiveData(
+    workbench.location$.selector(location =>
+      location.pathname.startsWith('/foundryos')
+    )
+  );
+
+  return (
+    <MenuLinkItem
+      icon={<ViewLayersIcon />}
+      active={foundryActive}
+      to={'/foundryos/customer'}
+    >
+      <span data-testid="foundryos-entry">FoundryOS</span>
+    </MenuLinkItem>
+  );
+};
+
+const FoundryOSWorkspaceSection = () => {
+  const { workbenchService } = useServices({
+    WorkbenchService,
+  });
+  const workbench = workbenchService.workbench;
+  const pathname = useLiveData(
+    workbench.location$.selector(location => location.pathname)
+  );
+  const [projects, setProjects] = useState<FoundrySidebarProject[]>([]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const load = async () => {
+      try {
+        const response = await fetch(
+          resolveFoundrySidebarApiPath('/views/customer-shell'),
+          {
+            signal: controller.signal,
+            headers: {
+              Accept: 'application/json',
+            },
+          }
+        );
+
+        if (!response.ok) {
+          return;
+        }
+
+        const payload = (await response.json()) as FoundrySidebarPayload;
+        setProjects(payload.projects ?? []);
+      } catch {
+        if (!controller.signal.aborted) {
+          setProjects([]);
+        }
+      }
+    };
+
+    load().catch(() => {});
+    return () => controller.abort();
+  }, []);
+
+  return (
+    <CollapsibleSection
+      path={['foundryos']}
+      title="FoundryOS"
+      contentStyle={{ padding: '6px 8px 0 8px' }}
+      testId="navigation-panel-foundryos"
+    >
+      <MenuLinkItem
+        icon={<ViewLayersIcon />}
+        active={pathname?.startsWith('/foundryos/customer')}
+        to="/foundryos/customer"
+      >
+        <span>Customer Console</span>
+      </MenuLinkItem>
+      <MenuLinkItem
+        icon={<SettingsIcon />}
+        active={pathname?.startsWith('/foundryos/admin')}
+        to="/foundryos/admin"
+      >
+        <span>Admin Console</span>
+      </MenuLinkItem>
+      {projects.map(project => {
+        const target =
+          project.routes?.foundryos?.overview ??
+          `/foundryos/projects/${project.project_id}/overview`;
+
+        return (
+          <MenuLinkItem
+            key={project.project_id}
+            icon={<AllDocsIcon />}
+            active={pathname?.startsWith(
+              `/foundryos/projects/${project.project_id}/`
+            )}
+            to={target}
+          >
+            <span>
+              {project.display_name}
+              {typeof project.asset_count === 'number'
+                ? ` (${project.asset_count})`
+                : ''}
+            </span>
+          </MenuLinkItem>
+        );
+      })}
+    </CollapsibleSection>
   );
 };
 
@@ -213,6 +351,7 @@ export const RootAppSidebar = memo((): ReactElement => {
         </div>
         <AllDocsButton />
         <AppSidebarJournalButton />
+        <FoundryOSButton />
         {sessionStatus === 'authenticated' && <NotificationButton />}
         <AIChatButton />
         <MenuItem
@@ -229,6 +368,7 @@ export const RootAppSidebar = memo((): ReactElement => {
         <NavigationPanelFavorites />
         <NavigationPanelOrganize />
         <NavigationPanelMigrationFavorites />
+        <FoundryOSWorkspaceSection />
         <NavigationPanelTags />
         <NavigationPanelCollections />
         <CollapsibleSection

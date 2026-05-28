@@ -72,6 +72,22 @@ export function registerAffineNavigationCommands({
 
   unsubs.push(
     registerAffineCommand({
+      id: 'affine:goto-foundryos',
+      category: 'affine:navigation',
+      icon: <ArrowRightBigIcon />,
+      label: 'Go to FoundryOS',
+      run() {
+        track.$.cmdk.navigation.navigate({
+          to: 'foundryos',
+        });
+
+        navigationHelper.jumpToFoundryOS(docCollection.id);
+      },
+    })
+  );
+
+  unsubs.push(
+    registerAffineCommand({
       id: 'affine:goto-workspace',
       category: 'affine:navigation',
       icon: <ArrowRightBigIcon />,

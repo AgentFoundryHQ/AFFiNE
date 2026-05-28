@@ -12,6 +12,11 @@ import { NavigateContext } from '../components/hooks/use-navigate-helper';
 import { RootWrapper } from './pages/root';
 import {
   CATCH_ALL_ROUTE_PATH,
+  FOUNDRYOS_ADMIN_ROUTE_PATH,
+  FOUNDRYOS_CUSTOMER_ROUTE_PATH,
+  FOUNDRYOS_PROJECT_ROUTE_PATH,
+  FOUNDRYOS_ROOT_ROUTE_PATH,
+  getFoundryOSProjectPath,
   getWorkspaceDocPath,
   NOT_FOUND_ROUTE_PATH,
   SHARE_ROUTE_PATH,
@@ -111,6 +116,32 @@ export const topLevelRoutes = [
       {
         path: '/theme-editor',
         lazy: () => import('./pages/theme-editor'),
+      },
+      {
+        path: FOUNDRYOS_ROOT_ROUTE_PATH,
+        loader: () => {
+          return redirect(FOUNDRYOS_CUSTOMER_ROUTE_PATH);
+        },
+      },
+      {
+        path: FOUNDRYOS_CUSTOMER_ROUTE_PATH,
+        lazy: () => import('./pages/foundryos'),
+      },
+      {
+        path: FOUNDRYOS_ADMIN_ROUTE_PATH,
+        lazy: () => import('./pages/foundryos'),
+      },
+      {
+        path: '/foundryos/projects/:projectId',
+        loader: ({ params }) => {
+          return redirect(
+            getFoundryOSProjectPath(params.projectId ?? '', 'overview')
+          );
+        },
+      },
+      {
+        path: FOUNDRYOS_PROJECT_ROUTE_PATH,
+        lazy: () => import('./pages/foundryos'),
       },
       {
         path: '/clipper/import',

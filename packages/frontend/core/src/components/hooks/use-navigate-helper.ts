@@ -69,6 +69,21 @@ export function buildWorkspaceSettingsRedirectUri(
   return redirectUrl.toString();
 }
 
+export function buildWorkspaceFoundryOSPath(
+  workspaceId: string,
+  options?: {
+    mode?: 'customer' | 'admin';
+    projectId?: string;
+    section?: string;
+  }
+) {
+  if (options?.projectId) {
+    return `/workspace/${workspaceId}/foundryos/projects/${options.projectId}/${options.section ?? 'overview'}`;
+  }
+
+  return `/workspace/${workspaceId}/foundryos/${options?.mode ?? 'customer'}`;
+}
+
 // TODO(@eyhn): add a name -> path helper in the results
 /**
  * Use this for over workbench navigate, for navigate in workbench, use `WorkbenchService`.
@@ -169,6 +184,23 @@ export function useNavigateHelper() {
       logic: RouteLogic = RouteLogic.PUSH
     ) => {
       return navigate(`/workspace/${workspaceId}/collection/${collectionId}`, {
+        replace: logic === RouteLogic.REPLACE,
+      });
+    },
+    [navigate]
+  );
+
+  const jumpToFoundryOS = useCallback(
+    (
+      workspaceId: string,
+      options?: {
+        mode?: 'customer' | 'admin';
+        projectId?: string;
+        section?: string;
+      },
+      logic: RouteLogic = RouteLogic.PUSH
+    ) => {
+      return navigate(buildWorkspaceFoundryOSPath(workspaceId, options), {
         replace: logic === RouteLogic.REPLACE,
       });
     },
@@ -290,6 +322,7 @@ export function useNavigateHelper() {
       jumpToSignIn,
       jumpToCollection,
       jumpToCollections,
+      jumpToFoundryOS,
       jumpToTags,
       jumpToTag,
       jumpToOpenInApp,
@@ -307,6 +340,7 @@ export function useNavigateHelper() {
       jumpToSignIn,
       jumpToCollection,
       jumpToCollections,
+      jumpToFoundryOS,
       jumpToTags,
       jumpToTag,
       jumpToOpenInApp,

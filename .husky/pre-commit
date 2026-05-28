@@ -1,1 +1,1 @@
-yarn lint-staged && yarn lint:ox
+node .yarn/releases/yarn-4.13.0.cjs lint-staged && node .yarn/releases/yarn-4.13.0.cjs lint:ox
