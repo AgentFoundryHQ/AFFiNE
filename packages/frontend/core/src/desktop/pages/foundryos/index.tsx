@@ -11,7 +11,6 @@ import {
 } from '../../route-paths';
 
 const API_BASE_STORAGE_KEY = 'foundryos.apiBase';
-const DEFAULT_LOCAL_API_BASE = 'http://127.0.0.1:8000';
 const projectSections = [
   'overview',
   'content',
@@ -168,15 +167,17 @@ function resolveApiBase() {
     return storedBase;
   }
 
-  if (window.location.port === '8080') {
-    return '/foundryos-api';
-  }
-
+  // When served directly from the cockpit-api itself (port 8000), use no prefix.
   if (window.location.port === '8000') {
     return '';
   }
 
-  return DEFAULT_LOCAL_API_BASE;
+  // In all other cases (AFFiNE dev server on port 8080, production, etc.),
+  // use the /foundryos-api prefix so the dev-server proxy routes requests to
+  // cockpit-api on port 8000. Never fall back to an absolute localhost URL —
+  // that would bypass the proxy and cause "Error occurred while trying to proxy"
+  // errors when accessed through the AFFiNE dev server.
+  return '/foundryos-api';
 }
 
 function buildApiUrl(path: string) {
