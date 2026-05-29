@@ -24,3 +24,15 @@
 # Sourcemaps (keep server sourcemap for backend stacktraces)
 **/*.map
 !packages/backend/server/dist/main.js.map
+
+# FoundryOS Docker additions
+graphify-out
+docker-compose.yml
+.docker
+Dockerfile
+*.log
+
+# Yarn global cache (not useful in Docker, disable via YARN_ENABLE_GLOBAL_CACHE=false)
+/.yarn/cache
+/.yarn/unplugged
+/.yarn/install-state.gz

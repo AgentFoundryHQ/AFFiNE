@@ -1,0 +1,39 @@
+# AFFiNE — FoundryOS frontend shell
+# Usage (standalone): docker compose up -d
+# Part of AgentFoundryHQ root compose via include
+#
+# Proxies /foundryos-api → cockpit-api:8000 via FOUNDRYOS_API_URL env var.
+# The rspack dev server (affine bundle --dev) handles the proxy internally.
+
+services:
+  affine:
+    build: .
+    image: agentfoundryhq/affine:latest
+    container_name: affine
+    ports:
+      - '8080:8080'
+    environment:
+      NODE_ENV: development
+      FOUNDRYOS_API_URL: 'http://cockpit-api:8000'
+    networks:
+      - agentfoundryhq-net
+    restart: unless-stopped
+    depends_on:
+      - cockpit-api
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://localhost:8080', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 5
+
+networks:
+  agentfoundryhq-net:
+    external: true
+    name: agentfoundryhq-net
