@@ -14,6 +14,10 @@ import {
   CATCH_ALL_ROUTE_PATH,
   FOUNDRYOS_ADMIN_ROUTE_PATH,
   FOUNDRYOS_CUSTOMER_ROUTE_PATH,
+  FOUNDRYOS_MANAGE_AGENTS_ROUTE_PATH,
+  FOUNDRYOS_MANAGE_ASSETS_ROUTE_PATH,
+  FOUNDRYOS_MANAGE_CAPABILITIES_ROUTE_PATH,
+  FOUNDRYOS_MANAGE_WORKFLOWS_ROUTE_PATH,
   FOUNDRYOS_PROJECT_ROUTE_PATH,
   FOUNDRYOS_ROOT_ROUTE_PATH,
   getFoundryOSProjectPath,
@@ -141,6 +145,22 @@ export const topLevelRoutes = [
       },
       {
         path: FOUNDRYOS_PROJECT_ROUTE_PATH,
+        lazy: () => import('./pages/foundryos'),
+      },
+      {
+        path: FOUNDRYOS_MANAGE_AGENTS_ROUTE_PATH,
+        lazy: () => import('./pages/foundryos'),
+      },
+      {
+        path: FOUNDRYOS_MANAGE_CAPABILITIES_ROUTE_PATH,
+        lazy: () => import('./pages/foundryos'),
+      },
+      {
+        path: FOUNDRYOS_MANAGE_WORKFLOWS_ROUTE_PATH,
+        lazy: () => import('./pages/foundryos'),
+      },
+      {
+        path: FOUNDRYOS_MANAGE_ASSETS_ROUTE_PATH,
         lazy: () => import('./pages/foundryos'),
       },
       {

@@ -1,6 +1,6 @@
 import { Tabs } from '@affine/component';
 import type { CSSProperties } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import {
@@ -9,6 +9,10 @@ import {
   getWorkspaceFoundryOSCustomerPath,
   getWorkspaceFoundryOSProjectPath,
 } from '../../route-paths';
+import { AgentsPage } from './agents';
+import { AssetsPage } from './assets';
+import { CapabilitiesPage } from './capabilities';
+import { WorkflowsPage } from './workflows';
 
 const API_BASE_STORAGE_KEY = 'foundryos.apiBase';
 const projectSections = [
@@ -686,6 +690,45 @@ function TopBar({
   const isAdmin =
     pathname.startsWith('/foundryos/admin') ||
     pathname.includes('/foundryos/admin');
+  const isAgents = pathname.includes('/foundryos/manage/agents');
+  const isCapabilities = pathname.includes('/foundryos/manage/capabilities');
+  const isManageWorkflows = pathname.includes('/foundryos/manage/workflows');
+  const isAssets = pathname.includes('/foundryos/manage/assets');
+  const isCustomer =
+    !isAdmin && !isAgents && !isCapabilities && !isManageWorkflows && !isAssets;
+
+  const navItems = [
+    { label: 'Customer', to: customerPath, active: isCustomer },
+    { label: 'Admin', to: adminPath, active: isAdmin },
+    {
+      label: 'Agents',
+      to: workspaceId
+        ? `/workspace/${workspaceId}/foundryos/manage/agents`
+        : '/foundryos/manage/agents',
+      active: isAgents,
+    },
+    {
+      label: 'Capabilities',
+      to: workspaceId
+        ? `/workspace/${workspaceId}/foundryos/manage/capabilities`
+        : '/foundryos/manage/capabilities',
+      active: isCapabilities,
+    },
+    {
+      label: 'Workflows',
+      to: workspaceId
+        ? `/workspace/${workspaceId}/foundryos/manage/workflows`
+        : '/foundryos/manage/workflows',
+      active: isManageWorkflows,
+    },
+    {
+      label: 'Assets',
+      to: workspaceId
+        ? `/workspace/${workspaceId}/foundryos/manage/assets`
+        : '/foundryos/manage/assets',
+      active: isAssets,
+    },
+  ];
 
   return (
     <div
@@ -716,51 +759,34 @@ function TopBar({
       </span>
 
       {/* Nav pills */}
-      <div style={{ display: 'flex', gap: 4, flex: 1 }}>
-        <Link
-          to={customerPath}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            height: 30,
-            padding: '0 12px',
-            borderRadius: 999,
-            textDecoration: 'none',
-            fontSize: 13,
-            fontWeight: 600,
-            background: !isAdmin ? 'rgba(31, 111, 255, 0.10)' : 'transparent',
-            color: !isAdmin
-              ? '#1f6fff'
-              : 'var(--affine-text-secondary-color, #667085)',
-            border: !isAdmin
-              ? '1px solid rgba(31, 111, 255, 0.20)'
-              : '1px solid transparent',
-          }}
-        >
-          Customer
-        </Link>
-        <Link
-          to={adminPath}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            height: 30,
-            padding: '0 12px',
-            borderRadius: 999,
-            textDecoration: 'none',
-            fontSize: 13,
-            fontWeight: 600,
-            background: isAdmin ? 'rgba(31, 111, 255, 0.10)' : 'transparent',
-            color: isAdmin
-              ? '#1f6fff'
-              : 'var(--affine-text-secondary-color, #667085)',
-            border: isAdmin
-              ? '1px solid rgba(31, 111, 255, 0.20)'
-              : '1px solid transparent',
-          }}
-        >
-          Admin
-        </Link>
+      <div style={{ display: 'flex', gap: 4, flex: 1, flexWrap: 'wrap' }}>
+        {navItems.map(item => (
+          <Link
+            key={item.label}
+            to={item.to}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              height: 30,
+              padding: '0 12px',
+              borderRadius: 999,
+              textDecoration: 'none',
+              fontSize: 13,
+              fontWeight: 600,
+              background: item.active
+                ? 'rgba(31, 111, 255, 0.10)'
+                : 'transparent',
+              color: item.active
+                ? '#1f6fff'
+                : 'var(--affine-text-secondary-color, #667085)',
+              border: item.active
+                ? '1px solid rgba(31, 111, 255, 0.20)'
+                : '1px solid transparent',
+            }}
+          >
+            {item.label}
+          </Link>
+        ))}
       </div>
 
       {/* Right side: workspace indicator */}
@@ -1719,6 +1745,282 @@ function WorkQueueSection({
   );
 }
 
+// ─── Content Discovery widget ─────────────────────────────────────────────────
+
+function ContentDiscoveryWidget() {
+  const [topic, setTopic] = useState('');
+  const [running, setRunning] = useState(false);
+  const [runId, setRunId] = useState<string | null>(null);
+  const [runStatus, setRunStatus] = useState<string | null>(null);
+  const [steps, setSteps] = useState<
+    Array<{ step_id: string; status: string }>
+  >([]);
+  const [error, setError] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollCountRef = useRef(0);
+
+  const stopPolling = () => {
+    if (pollRef.current) clearTimeout(pollRef.current);
+    pollRef.current = null;
+  };
+
+  const pollRun = (id: string) => {
+    pollCountRef.current += 1;
+    if (pollCountRef.current > 20) {
+      stopPolling();
+      return;
+    }
+    fetch(buildApiUrl(`/workflows/runs/${id}`), {
+      headers: { Accept: 'application/json' },
+    })
+      .then(r => r.json())
+      .then((data: Record<string, unknown>) => {
+        const status = String(data.status ?? 'unknown');
+        setRunStatus(status);
+        const rawSteps = data.steps;
+        if (Array.isArray(rawSteps)) {
+          setSteps(rawSteps as Array<{ step_id: string; status: string }>);
+        }
+        if (status !== 'running' && status !== 'pending') {
+          stopPolling();
+          setRunning(false);
+        } else {
+          pollRef.current = setTimeout(() => pollRun(id), 3000);
+        }
+      })
+      .catch(() => {
+        stopPolling();
+        setRunning(false);
+      });
+  };
+
+  const handleStart = async () => {
+    if (!topic.trim()) return;
+    setRunning(true);
+    setError(null);
+    setRunId(null);
+    setRunStatus(null);
+    setSteps([]);
+    pollCountRef.current = 0;
+    try {
+      const resp = await fetch(buildApiUrl('/workflows/runs'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          definition_id: 'content_discovery_v1',
+          inputs: { topic: topic.trim() },
+        }),
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = (await resp.json()) as { run_id?: string; id?: string };
+      const id = data.run_id ?? data.id ?? null;
+      setRunId(id);
+      if (id) {
+        pollRef.current = setTimeout(() => pollRun(id), 3000);
+      } else {
+        setRunning(false);
+      }
+    } catch (err) {
+      setError(String(err));
+      setRunning(false);
+    }
+  };
+
+  useEffect(() => {
+    return () => stopPolling();
+  }, []);
+
+  const completedSteps = steps.filter(s => s.status === 'completed').length;
+
+  return (
+    <div
+      style={{
+        borderRadius: 12,
+        border: '1px solid var(--affine-border-color, rgba(16,24,40,0.08))',
+        padding: 16,
+        background: 'var(--affine-background-primary-color, #fff)',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)',
+      }}
+    >
+      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>
+        Discover Content
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          gap: 8,
+          marginBottom: error || runId ? 12 : 0,
+        }}
+      >
+        <input
+          value={topic}
+          onChange={e => setTopic(e.target.value)}
+          placeholder="Topic or keyword to discover…"
+          disabled={running}
+          style={{
+            flex: 1,
+            minHeight: 36,
+            borderRadius: 8,
+            border:
+              '1px solid var(--affine-border-color, rgba(16, 24, 40, 0.12))',
+            padding: '0 12px',
+            background: 'var(--affine-background-primary-color, #fff)',
+            outline: 'none',
+            fontSize: 13,
+            boxSizing: 'border-box',
+          }}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && !running) {
+              handleStart().catch(() => {});
+            }
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => {
+            handleStart().catch(() => {});
+          }}
+          disabled={running || !topic.trim()}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            height: 36,
+            padding: '0 16px',
+            borderRadius: 8,
+            border: '1px solid rgba(31, 111, 255, 0.20)',
+            background: 'rgba(31, 111, 255, 0.10)',
+            color: '#1f6fff',
+            fontWeight: 600,
+            fontSize: 13,
+            cursor: running || !topic.trim() ? 'default' : 'pointer',
+            opacity: running || !topic.trim() ? 0.6 : 1,
+            flexShrink: 0,
+          }}
+        >
+          {running ? 'Running…' : 'Start Discovery'}
+        </button>
+      </div>
+
+      {error ? (
+        <div
+          style={{
+            borderRadius: 8,
+            border: '1px solid rgba(180, 35, 24, 0.20)',
+            background: 'rgba(180, 35, 24, 0.05)',
+            padding: '8px 12px',
+            color: '#b42318',
+            fontSize: 12,
+          }}
+        >
+          {error}
+        </div>
+      ) : null}
+
+      {runId ? (
+        <div style={{ display: 'grid', gap: 8 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              fontSize: 12,
+            }}
+          >
+            <span
+              style={{ color: 'var(--affine-text-secondary-color, #667085)' }}
+            >
+              Run ID:
+            </span>
+            <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>
+              {runId}
+            </span>
+            {runStatus ? (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  height: 20,
+                  padding: '0 8px',
+                  borderRadius: 999,
+                  border:
+                    runStatus === 'completed'
+                      ? '1px solid rgba(6, 118, 71, 0.18)'
+                      : runStatus === 'failed'
+                        ? '1px solid rgba(180, 35, 24, 0.18)'
+                        : '1px solid rgba(181, 71, 8, 0.18)',
+                  background:
+                    runStatus === 'completed'
+                      ? 'rgba(6, 118, 71, 0.08)'
+                      : runStatus === 'failed'
+                        ? 'rgba(180, 35, 24, 0.08)'
+                        : 'rgba(181, 71, 8, 0.08)',
+                  color:
+                    runStatus === 'completed'
+                      ? '#067647'
+                      : runStatus === 'failed'
+                        ? '#b42318'
+                        : '#b54708',
+                  fontWeight: 600,
+                  fontSize: 10,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                {runStatus}
+              </span>
+            ) : null}
+          </div>
+          {steps.length > 0 ? (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {steps.map(s => (
+                <span
+                  key={s.step_id}
+                  style={{
+                    padding: '2px 8px',
+                    borderRadius: 6,
+                    background:
+                      s.status === 'completed'
+                        ? 'rgba(6, 118, 71, 0.08)'
+                        : s.status === 'failed'
+                          ? 'rgba(180, 35, 24, 0.08)'
+                          : 'rgba(16, 24, 40, 0.04)',
+                    border:
+                      '1px solid var(--affine-border-color, rgba(16,24,40,0.08))',
+                    fontSize: 11,
+                    color:
+                      s.status === 'completed'
+                        ? '#067647'
+                        : s.status === 'failed'
+                          ? '#b42318'
+                          : 'var(--affine-text-secondary-color, #667085)',
+                    fontWeight: 500,
+                  }}
+                >
+                  {s.step_id}: {s.status}
+                </span>
+              ))}
+              <span
+                style={{
+                  fontSize: 11,
+                  color: 'var(--affine-text-secondary-color, #667085)',
+                  alignSelf: 'center',
+                }}
+              >
+                {completedSteps}/{steps.length} complete
+              </span>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 // ─── Customer view ────────────────────────────────────────────────────────────
 
 function CustomerView({
@@ -1822,6 +2124,9 @@ function CustomerView({
         </div>
         <RuntimeHealthPills items={customer.runtime.items} />
       </div>
+
+      {/* Content Discovery */}
+      <ContentDiscoveryWidget />
     </div>
   );
 }
@@ -2641,6 +2946,30 @@ export const FoundryOSSurface = ({
     ) {
       return 'project' as const;
     }
+    if (
+      location.pathname.startsWith('/foundryos/manage/agents') ||
+      location.pathname.includes('/foundryos/manage/agents')
+    ) {
+      return 'manage-agents' as const;
+    }
+    if (
+      location.pathname.startsWith('/foundryos/manage/capabilities') ||
+      location.pathname.includes('/foundryos/manage/capabilities')
+    ) {
+      return 'manage-capabilities' as const;
+    }
+    if (
+      location.pathname.startsWith('/foundryos/manage/workflows') ||
+      location.pathname.includes('/foundryos/manage/workflows')
+    ) {
+      return 'manage-workflows' as const;
+    }
+    if (
+      location.pathname.startsWith('/foundryos/manage/assets') ||
+      location.pathname.includes('/foundryos/manage/assets')
+    ) {
+      return 'manage-assets' as const;
+    }
     return 'customer' as const;
   }, [location.pathname]);
 
@@ -2648,6 +2977,18 @@ export const FoundryOSSurface = ({
 
   useEffect(() => {
     const abortController = new AbortController();
+    // Management pages manage their own state
+    if (
+      pageKind === 'manage-agents' ||
+      pageKind === 'manage-capabilities' ||
+      pageKind === 'manage-workflows' ||
+      pageKind === 'manage-assets'
+    ) {
+      setLoading(false);
+      setError(null);
+      setState(null);
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -2781,8 +3122,28 @@ export const FoundryOSSurface = ({
           padding: embeddedInWorkbench ? 16 : 24,
         }}
       >
-        {/* Project view: sidebar + main */}
-        {!loading && !error && state?.kind === 'project' ? (
+        {/* Management pages — self-contained, no state loading needed */}
+        {!loading &&
+        (pageKind === 'manage-agents' ||
+          pageKind === 'manage-capabilities' ||
+          pageKind === 'manage-workflows' ||
+          pageKind === 'manage-assets') ? (
+          <div>
+            {pageKind === 'manage-agents' ? <AgentsPage /> : null}
+            {pageKind === 'manage-capabilities' ? <CapabilitiesPage /> : null}
+            {pageKind === 'manage-workflows' ? <WorkflowsPage /> : null}
+            {pageKind === 'manage-assets' ? <AssetsPage /> : null}
+          </div>
+        ) : null}
+
+        {/* Project view: sidebar + main (only for non-management pages) */}
+        {pageKind !== 'manage-agents' &&
+        pageKind !== 'manage-capabilities' &&
+        pageKind !== 'manage-workflows' &&
+        pageKind !== 'manage-assets' &&
+        !loading &&
+        !error &&
+        state?.kind === 'project' ? (
           <div
             style={{
               display: 'grid',
@@ -2814,7 +3175,10 @@ export const FoundryOSSurface = ({
               />
             </div>
           </div>
-        ) : (
+        ) : pageKind !== 'manage-agents' &&
+          pageKind !== 'manage-capabilities' &&
+          pageKind !== 'manage-workflows' &&
+          pageKind !== 'manage-assets' ? (
           <div style={{ display: 'grid', gap: 16 }}>
             {loading ? <LoadingSkeleton /> : null}
 
@@ -2833,7 +3197,7 @@ export const FoundryOSSurface = ({
               <AdminView admin={state.admin} workspaceId={workspaceId} />
             ) : null}
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

@@ -7,6 +7,12 @@ export const FOUNDRYOS_CUSTOMER_ROUTE_PATH = '/foundryos/customer';
 export const FOUNDRYOS_ADMIN_ROUTE_PATH = '/foundryos/admin';
 export const FOUNDRYOS_PROJECT_ROUTE_PATH =
   '/foundryos/projects/:projectId/:section';
+export const FOUNDRYOS_MANAGE_AGENTS_ROUTE_PATH = '/foundryos/manage/agents';
+export const FOUNDRYOS_MANAGE_CAPABILITIES_ROUTE_PATH =
+  '/foundryos/manage/capabilities';
+export const FOUNDRYOS_MANAGE_WORKFLOWS_ROUTE_PATH =
+  '/foundryos/manage/workflows';
+export const FOUNDRYOS_MANAGE_ASSETS_ROUTE_PATH = '/foundryos/manage/assets';
 export const WORKSPACE_FOUNDRYOS_ROOT_ROUTE_PATH =
   '/workspace/:workspaceId/foundryos';
 export const WORKSPACE_FOUNDRYOS_CUSTOMER_ROUTE_PATH =
